@@ -1,7 +1,6 @@
 //MINIMAL UUPS PROXY:
 //THIS DOESN'T HAVE ANY CHECKS THAT ARE IN @Openzeppelin's UUPS
 
-#define function proxiableUUID() view returns (bytes32)
 
 #define error unsupported_proxiableUUID()
 
@@ -17,31 +16,31 @@
 #define macro updateCodeAddress() = takes(1) returns (0) {
     //CHECK PROXIABLE               //[newImplAddr]
     dup1                            //[newImplAddr, newImplAddr]
+    0x52d1902d00000000000000000000000000000000000000000000000000000000   //proxiableUUID()  
+                                    //[0x52d1902d0000...., newImplAddr, newImplAddr]
+    0x00 mstore                     //[newImplAddr, newImplAddr]
+
     0x20                //retSize   //[0x20, newImplAddr, newImplAddr]
     returndatasize      //retOffset //[0x00, 0x20, newImplAddr, newImplAddr]
-    0x00                //argsize   //[0x00, 0x00, 0x20, newImplAddr, newImplAddr]
+    0x04                //argsize   //[0x00, 0x00, 0x20, newImplAddr, newImplAddr]
     0x00                //argOffset //[0x00, 0x00, 0x00, 0x20, newImplAddr, newImplAddr]
     0x00 swap5                      //[newImplAddr, 0x00, 0x00, 0x00, 0x20, 0x00, newImplAddr]
     gas                 //gas       //[gas, newImplAddr, 0x00, 0x00, 0x00, 0x20, 0x00, newImplAddr]
-    staticcall                      //[1 or 0, newImplAddr] //can ignore as we are checking the returndata in next step
+    staticcall                      //[status, 0x00, newImplAddr] //ignoring the call result as we are checking the returndata in next step
                                     //saves gas on successfull execution case
 
-    pop
+    pop                             //[0x00, newImplAddr]
 
-    0x00 mload                      //[returnedData, newImplAddr]
+    mload                      //[returnedData, newImplAddr]
     0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7  //[implSlot, returnedData, newImplAddr]
-    eq isZero revert_non_proxiable jumpi    //revert if not proxiable   //[newImplAddr]
-    0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7  //[implSlot, newImplAddr]
-    sstore                          //[]     
+    eq continue jumpi    //revert if not proxiable   //[newImplAddr]
 
-
-    revert_non_proxiable:
-        __ERROR(unsupported_proxiableUUID)
+    __ERROR(unsupported_proxiableUUID)
         0x00 mstore
         0x04 0x00 revert
 
-}
-
-#define macro MAIN() = takes(0) returns(0) {
-    //TODO remove
+    continue:
+        0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7  //[implSlot, newImplAddr]
+        sstore                          //[]     
+        
 }
